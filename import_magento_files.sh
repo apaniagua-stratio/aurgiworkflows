@@ -1,5 +1,8 @@
 #!/bin/sh
 
+	now=$(date +"%T")
+	echo "Start time : $now"
+
 	magentopath="/var/www/magentodev"
 	magentourl="https://stratio-dev.motortown.es"
         ftp_site="10.20.1.112"
@@ -22,22 +25,24 @@
 	for (( i=0; i<${arraylength}; i++ ))
 	do
 	   # copiar solo si no esta en lista de leidos
-	   if grep -q ${arr[$i]} "$magentopath/var/import/ficheros_leidos.txt"; 
+	   if grep -q ${arr[$i]} "$magentopath/var/import/PROCESSED_FILES"; 
 	   then
    	   	echo "${arr[$i]} already imported."
 	   else
  	        echo "${arr[$i]} is new and will be imported."
 		echo "get ${arr[$i]}" | sftp $username@$ftp_site:$rpath/${arr[$i]} $magentopath/var/import/product/current.csv  
 		curl $magentourl/Customcart/Import/product
-	        sleep 90 
+	        sleep 75 
 		
-		echo ${arr[$i]} >> $magentopath/var/import/ficheros_leidos.txt
+		echo ${arr[$i]} >> $magentopath/var/import/PROCESSED_FILES
+		INGESTED_PRODUCT_FILE=${arr[$i]}
+		export INGESTED_PRODUCT_FILE
 
 		break
 	   fi	
 	done
 	
-	echo " --- "
+	echo "Finished products, starting availability"
 
 
 	declare -a arrStock=($filelistStock)
@@ -46,25 +51,29 @@
         for (( j=0; j<${arraylengthStock}; j++ ))
         do
            # copiar solo si no esta en lista de leidos
-           if grep -q ${arrStock[$j]} "$magentopath/var/import/ficheros_leidos.txt"; 
+           if grep -q ${arrStock[$j]} "$magentopath/var/import/PROCESSED_FILES"; 
            then
                 echo "${arrStock[$j]} already imported."
            else
                 echo "${arrStock[$j]} is new and will be imported."
-                echo ${arrStock[$j]} >> $magentopath/var/import/ficheros_leidos.txt
                 echo "get ${arrStock[$j]}" | sftp $username@$ftp_site:$rpath/${arrStock[$j]} $magentopath/var/import/avilability/current.csv  
                 curl $magentourl/Customcart/Import/availabilitysingle
-                sleep 90
+                sleep 75
+
+		echo ${arrStock[$j]} >> $magentopath/var/import/PROCESSED_FILES
+	 	export INGESTED_STOCK_FILE=${arrStock[$i]}
 
                 break
            fi   
         done
 	
 	echo -e "\nOutput of system.log: "
-	tail -n 20 $magentopath/var/log/system.log | grep "STRATIO"
+	tail -n 18 $magentopath/var/log/system.log | grep "STRATIO"
 							
 	echo "Success : $?"
+	now=$(date +"%T")
+	echo "End time : $now"
 
 	exit
         EOF
-        echo "Success : $?"
+
